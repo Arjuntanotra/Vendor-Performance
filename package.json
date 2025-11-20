@@ -21,6 +21,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "npm run build && npx serve dist",
-    "serve": "npx serve dist"
+    "serve": "npx serve dist",
+    "postinstall": "chmod +x node_modules/.bin/*"
   }
 }
