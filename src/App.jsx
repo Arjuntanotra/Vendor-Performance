@@ -86,6 +86,9 @@ const VendorPerformanceDashboard = () => {
   const [filterGroup, setFilterGroup] = useState('All');
   const [filterType, setFilterType] = useState('All');
   const [allVendorsSearchTerm, setAllVendorsSearchTerm] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState(new Date());
 
@@ -212,12 +215,18 @@ const VendorPerformanceDashboard = () => {
   const filteredItems = useMemo(() => {
     return itemsData.filter(item => {
       const matchesSearch = item.itemCd.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           item.itemDesc.toLowerCase().includes(searchTerm.toLowerCase());
+                         item.itemDesc.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesGroup = filterGroup === 'All' || item.matGrp === filterGroup;
       const matchesType = filterType === 'All' || item.matType === filterType;
-      return matchesSearch && matchesGroup && matchesType;
+      const matchesDateRange = !dateFrom || !dateTo || item.pos.some(po => {
+        const poDate = new Date(po.poDt);
+        const fromDateObj = new Date(dateFrom);
+        const toDateObj = new Date(dateTo);
+        return poDate >= fromDateObj && poDate <= toDateObj;
+      });
+      return matchesSearch && matchesGroup && matchesType && matchesDateRange;
     });
-  }, [itemsData, searchTerm, filterGroup, filterType]);
+  }, [itemsData, searchTerm, filterGroup, filterType, dateFrom, dateTo]);
 
   const vendorsForItem = useMemo(() => {
     if (!selectedItem) return [];
@@ -256,7 +265,7 @@ const VendorPerformanceDashboard = () => {
   if (viewLevel === 'items') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="container mx-auto xl:px-8">
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <h1 className="text-4xl font-bold text-indigo-900">Vendor Performance Dashboard</h1>
@@ -304,8 +313,8 @@ const VendorPerformanceDashboard = () => {
 
 
           <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="relative">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 text-slate-400" size={20} />
                 <input
                   type="text"
@@ -316,33 +325,62 @@ const VendorPerformanceDashboard = () => {
                 />
               </div>
 
-              <select
-                className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                value={filterGroup}
-                onChange={(e) => setFilterGroup(e.target.value)}
-              >
-                <option value="">Material Group</option>
-                {materialGroups.map(group => (
-                  <option key={group} value={group}>{group}</option>
-                ))}
-              </select>
-
-              <select
-                className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-              >
-                <option value="">Material Type</option>
-                {materialTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-
-              <div className="flex items-center text-sm text-slate-600">
-                <Filter className="mr-2" size={18} />
-                {filteredItems.length} items found
+              <div className="flex gap-2">
+                <div>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="From"
+                  />
+                </div>
+                <div>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="To"
+                  />
+                </div>
               </div>
+
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:bg-slate-50 transition-colors ${showFilters ? 'bg-blue-50 border-blue-300' : ''}`}
+              >
+                <Filter size={16} className={showFilters ? 'text-blue-600' : 'text-slate-600'} />
+              </button>
             </div>
+
+            {showFilters && (
+              <div className="mt-4 p-4 bg-slate-50 rounded-lg border animated-slide-down">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <select
+                    className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={filterGroup}
+                    onChange={(e) => setFilterGroup(e.target.value)}
+                  >
+                    <option value="All">All Material Groups</option>
+                    {materialGroups.slice(1).map(group => (
+                      <option key={group} value={group}>{group}</option>
+                    ))}
+                  </select>
+
+                  <select
+                    className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                  >
+                    <option value="All">All Material Types</option>
+                    {materialTypes.slice(1).map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Dashboard Overview Charts */}
@@ -379,10 +417,28 @@ const VendorPerformanceDashboard = () => {
                     width={40}
                   />
                   <Tooltip
-                    formatter={(value, name) => [
-                      name === 'PO Value (Cr)' ? `₹${(value / 10000000).toFixed(2)}Cr` : value,
-                      name
-                    ]}
+                    formatter={(value, name, props) => {
+                      const item = props.payload;
+                      if (name === 'PO Value (Cr)') {
+                        return [
+                          `₹${(value / 10000000).toFixed(2)}Cr`,
+                          'Purchase Value'
+                        ];
+                      }
+                      return [value, name];
+                    }}
+                    labelFormatter={(label, payload) => {
+                      if (payload && payload[0]) {
+                        const item = payload[0].payload;
+                        return (
+                          <div className="text-sm">
+                            <div className="font-bold text-slate-800">{item.itemCd}</div>
+                            <div className="text-slate-600 truncate max-w-xs">{item.itemDesc}</div>
+                          </div>
+                        );
+                      }
+                      return label;
+                    }}
                   />
                   <Legend wrapperStyle={{ fontSize: '12px' }} />
                   <Bar
@@ -442,11 +498,24 @@ const VendorPerformanceDashboard = () => {
                     tickFormatter={(value) => `${value}K`}
                   />
                   <Tooltip
-                    formatter={(value, name) => [
-                      name === 'value' ? `₹${value} Crores` : `${value}K Units`,
-                      name === 'value' ? 'Purchase Value' : 'Total Quantity'
-                    ]}
-                    labelFormatter={(label) => `Item: ${label}`}
+                    formatter={(value, name) => {
+                      if (name === 'value') {
+                        return [`₹${value.toFixed(2)} Cr`, 'Purchase Value'];
+                      }
+                      return [`${value.toFixed(2)}K Units`, 'Total Quantity'];
+                    }}
+                    labelFormatter={(label, payload) => {
+                      if (payload && payload[0]) {
+                        const item = payload[0].payload;
+                        return (
+                          <div className="text-sm">
+                            <div className="font-bold text-slate-800">{item.item}</div>
+                            <div className="text-slate-600 truncate max-w-xs">{item.itemDesc}</div>
+                          </div>
+                        );
+                      }
+                      return label;
+                    }}
                   />
                   <Legend />
                   <Bar
@@ -534,7 +603,7 @@ const VendorPerformanceDashboard = () => {
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="container mx-auto xl:px-8">
           {/* Breadcrumb Navigation */}
           <div className="mb-6 flex items-center gap-2 text-sm">
             <button
@@ -856,7 +925,7 @@ const VendorPerformanceDashboard = () => {
   if (viewLevel === 'allVendors') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="container mx-auto xl:px-8">
           <div className="mb-8">
             <h1 className="text-4xl font-bold text-indigo-900 mb-2">Vendor Performance Dashboard</h1>
             <p className="text-indigo-700">Browse and search all vendors</p>
